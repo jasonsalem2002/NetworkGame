@@ -1,10 +1,18 @@
 import socket, time, random
-
+import threading
 
 def random_number_generator():
     random.seed(time.time())
     return random.randint(0, 9)
 
+def handle_client(client_socket, username):
+    while True:
+        data = client_socket.recv(1024).decode().strip()
+        if not data:
+            break
+        if data == "ready":
+            print(f"{username} is ready to play!")
+    client_socket.close()
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -19,14 +27,7 @@ clients = []
 
 while True:
 
-    if connections >= 2:
-        conn3, addr3 = server_socket.accept()
-        conn3.send("Sorry server is at capacity".encode())
-        conn3.close()
-        print(f"Connection refused for {addr3}")
-        continue
-
-    if connections == 0:
+    if connections ==0 :
         conn1, addr1 = server_socket.accept()
         clients.append(conn1)
         connections += 1
@@ -35,6 +36,7 @@ while True:
         usernames.append(username1)
         conn1.send(f"Welcome {usernames[0]}! Kindly wait for another player to join the game.".encode())
 
+    elif connections ==1:
         conn2, addr2 = server_socket.accept()
         clients.append(conn2)
         connections += 1
@@ -45,9 +47,19 @@ while True:
         conn1.send(f"{usernames[1]} joined the game!".encode())
 
         print(f"Connected with {usernames[0]} on " + str(addr1) + f" and {usernames[1]} on " + str(addr2))
-
         number = random_number_generator()
 
         for client in clients:
-            client.sendall(f"Number is: {number}".encode())
+            t = threading.Thread(target=client.sendall, args=(f"Send 'ready' to start the game: ".encode(),))
+            t.start()
 
+        # Start a thread to handle each client
+        t1 = threading.Thread(target=handle_client, args=(conn1, username1))
+        t1.start()
+        t2 = threading.Thread(target=handle_client, args=(conn2, username2))
+        t2.start()
+
+        # Wait for both threads to finish
+        t1.join()
+        t2.join()
+        break
