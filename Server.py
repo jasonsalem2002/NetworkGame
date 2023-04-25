@@ -1,17 +1,20 @@
-import socket, time, random
-import threading
+import socket, time, random, threading
 
 def random_number_generator():
     random.seed(time.time())
     return random.randint(0, 9)
 
-def handle_client(client_socket, username):
+def handle_client(client_socket, username, username1, other_client):
     while True:
         data = client_socket.recv(1024).decode().strip()
-        if not data:
-            break
-        if data == "ready":
-            print(f"{username} is ready to play!")
+        data1 = other_client.recv(1024).decode().strip()
+        if data == data1:
+            print(f"{username} and {username1} are ready to play!")
+            for i in range(3, 0, -1):
+                print(i)
+                time.sleep(1)
+                client_socket.send(str(i).encode())
+                other_client.send(str(i).encode())
     client_socket.close()
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -54,9 +57,9 @@ while True:
             t.start()
 
         # Start a thread to handle each client
-        t1 = threading.Thread(target=handle_client, args=(conn1, username1))
+        t1 = threading.Thread(target=handle_client, args=(conn1, username1, username2, conn2))
         t1.start()
-        t2 = threading.Thread(target=handle_client, args=(conn2, username2))
+        t2 = threading.Thread(target=handle_client, args=(conn2, username2, username1, conn1))
         t2.start()
 
         # Wait for both threads to finish
