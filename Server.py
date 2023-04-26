@@ -4,7 +4,7 @@ def random_number_generator():
     random.seed(time.time())
     return random.randint(0, 9)
 
-def handle_client(client_socket, username, username1, other_client):
+def handle_client(client_socket, username, username1, other_client, number):
     while True:
         data = client_socket.recv(1024).decode().strip()
         data1 = other_client.recv(1024).decode().strip()
@@ -12,9 +12,17 @@ def handle_client(client_socket, username, username1, other_client):
             print(f"{username} and {username1} are ready to play!")
             for i in range(3, 0, -1):
                 print(i)
-                time.sleep(1)
                 client_socket.send(str(i).encode())
                 other_client.send(str(i).encode())
+                time.sleep(1)
+            client_socket.send(f"Number is: {number}".encode())
+            # client_socket.recv(1024).decode.strip()
+            
+    #         add a way to ready number from both clients, find a way to check if wrong then connection is closed with message
+    #         compute rtt using precise timing 
+    #   do it in a loop 3 times to ensure that only 3 rounds
+            
+            
     client_socket.close()
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -30,7 +38,7 @@ clients = []
 
 while True:
 
-    if connections ==0 :
+    if connections == 0:
         conn1, addr1 = server_socket.accept()
         clients.append(conn1)
         connections += 1
@@ -57,9 +65,9 @@ while True:
             t.start()
 
         # Start a thread to handle each client
-        t1 = threading.Thread(target=handle_client, args=(conn1, username1, username2, conn2))
+        t1 = threading.Thread(target=handle_client, args=(conn1, username1, username2, conn2, number))
         t1.start()
-        t2 = threading.Thread(target=handle_client, args=(conn2, username2, username1, conn1))
+        t2 = threading.Thread(target=handle_client, args=(conn2, username2, username1, conn1, number))
         t2.start()
 
         # Wait for both threads to finish
