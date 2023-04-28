@@ -1,4 +1,4 @@
-import socket, datetime, threading
+import socket, time, threading
 
 # create socket object
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -15,18 +15,20 @@ def get_user_input():
         message = input()
         client_socket.send(message.encode())
 
+def receive_messages():
+    while True:
+        mes = client_socket.recv(1024).decode()
+        print(mes)
+
 i = 0
 while True:
-
     if i == 0:
-
         warning = client_socket.recv(1024).decode()
 
         if warning == "Sorry server is at capacity":
             print(warning)
             client_socket.close()
             break
-
         else:
             username = input(warning)
             client_socket.send(str(username).encode())
@@ -34,8 +36,7 @@ while True:
             # Start the user input thread
             user_input_thread = threading.Thread(target=get_user_input)
             user_input_thread.start()
+            # Start the message receiving thread
+            receive_thread = threading.Thread(target=receive_messages)
+            receive_thread.start()
             continue
-
-    else:
-        mes = client_socket.recv(1024).decode()
-        print(mes)
