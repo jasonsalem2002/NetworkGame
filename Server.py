@@ -1,87 +1,99 @@
-import socket
-import time
-import random
-import threading
+import socket, random, time, threading
+
 
 def random_number_generator():
     random.seed(time.time())
     return random.randint(0, 9)
 
-def send_message(client_socket, message):
-    client_socket.send(message.encode())
 
-def handle_client(client_socket, username, username1, other_client, number):
+def is_ready(client_socket, username):
+    client_socket.send("Send 'ready' to begin the game".encode())
     while True:
-        data = client_socket.recv(1024).decode().strip()
-        data1 = other_client.recv(1024).decode().strip()
-        if data == data1:
-            print(f"{username} and {username1} are ready to play!")
-            countdown_threads = []
+        ready_response = client_socket.recv(1024).decode().strip()
+        if ready_response.lower() == "ready":
+            client_socket.send("Game will soon begin!".encode())
+            print(username, "is ready.")
+            break
+        else:
+            client_socket.send("Invalid input! Send 'ready' to start the game".encode())
+    return True
 
-            for i in range(3, 0, -1):
-                countdown = str(i)
-                print(countdown)
 
-                # Create a thread for each client to send the countdown message
-                t1 = threading.Thread(target=send_message, args=(client_socket, countdown))
-                t2 = threading.Thread(target=send_message, args=(other_client, countdown))
+def countdown():
+    for i in range(3, 0, -1):
+        print(i, end=' ')
+        for client_socket in connected_clients:
+            client_socket.send(str(i).encode())
+        time.sleep(1)
 
-                t1.start()
-                t2.start()
+def send_number(number):
+    for client_socket in connected_clients:
+        client_socket.send(f"Number is: {number}".encode())
 
-                countdown_threads.append(t1)
-                countdown_threads.append(t2)
+    nummm = client_socket.recv(1024).decode().strip()
+    print(nummm)
 
-                time.sleep(1)
+def handle_client(client_socket, number):
+    global max_connections, connected_clients, ready_clients
 
-            # Wait for all countdown threads to finish before sending the number
-            for thread in countdown_threads:
-                thread.join()
+    if max_connections == 0:
+        client_socket.send("Enter the maximum number of connections allowed: ".encode())
+        max_connections = int(client_socket.recv(1024).decode().strip())
+        print("Maximum number of connections set to:", max_connections)
+        client_socket.send("Please enter your username: ".encode())
+        username = client_socket.recv(1024).decode().strip()
+        print(f"{username} joined the game!")
+        connected_clients.append(client_socket)
+        if is_ready(client_socket, username):
+            ready_clients.append(username)
 
-            message = f"Number is: {number}"
+    elif len(connected_clients) >= max_connections:
+        client_socket.send("Maximum number of connections reached. Disconnecting.".encode())
+        print("Server at Capacity, rejecting new connections")
+        client_socket.close()
+        return
 
-            # Send the number to both clients
-            send_message(client_socket, message)
-            send_message(other_client, message)
+    elif len(connected_clients) == (max_connections - 1):
+        print("Last player joined")
+        client_socket.send("Please enter your username: ".encode())
+        username = client_socket.recv(1024).decode().strip()
+        print(f"{username} joined the game!")
+        connected_clients.append(client_socket)
+        if is_ready(client_socket, username):
+            ready_clients.append(username)
 
-    client_socket.close()
+    else:
+        client_socket.send("Please enter your username: ".encode())
+        username = client_socket.recv(1024).decode().strip()
+        print(f"{username} joined the game!")
+        connected_clients.append(client_socket)
+        if is_ready(client_socket, username):
+            ready_clients.append(username)
 
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-host = socket.gethostname()
-port = 12345
-server_socket.bind((host, port))
-server_socket.listen(2)
-print("Server is listening for incoming connections...")
-connections = 0
-usernames = []
-clients = []
+    if len(ready_clients) == max_connections:
+        print("All players are ready. Starting the countdown!")
+        countdown()
+        send_number(number)
 
-while True:
-    if connections == 0:
-        conn1, addr1 = server_socket.accept()
-        clients.append(conn1)
-        connections += 1
-        conn1.send("Please enter a username: ".encode())
-        username1 = conn1.recv(1024).decode().strip()
-        usernames.append(username1)
-        conn1.send(f"Welcome {usernames[0]}! Kindly wait for another player to join the game.".encode())
-    elif connections == 1:
-        conn2, addr2 = server_socket.accept()
-        clients.append(conn2)
-        connections += 1
-        conn2.send("Please enter a username: ".encode())
-        username2 = conn2.recv(1024).decode().strip()
-        usernames.append(username2)
-        conn2.send(f"Welcome {usernames[1]}! You will be playing against {usernames[0]}.".encode())
-        conn1.send(f"{usernames[1]} joined the game!".encode())
 
-        print(f"Connected with {usernames[0]} on {addr1} and {usernames[1]} on {addr2}")
-        number = random_number_generator()
+def start_server():
+    host = '127.0.0.1'
+    port = 8080
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind((host, port))
+    server_socket.listen(5)
+    number = random_number_generator()
+    print("Server listening on {}:{}".format(host, port))
 
-        # Send the "ready" message to both clients
-        send_message(conn1, "Send 'ready' to start the game: ")
-        send_message(conn2, "Send 'ready' to start the game: ")
+    while True:
+        client_socket, address = server_socket.accept()
+        print("Client connected from {}:{}".format(address[0], address[1]))
+        client_thread = threading.Thread(target=handle_client, args=(client_socket, number))
+        client_thread.start()
 
-        t1 = threading.Thread(target=handle_client, args=(conn1, username1, username2, conn2, number))
-        t1.start()
+
+connected_clients = []
+ready_clients = []
+max_connections = 0
+start_server()
