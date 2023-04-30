@@ -1,4 +1,13 @@
-import socket, random, time, threading
+import socket
+import random
+import time
+import threading
+
+
+def remove_client(client_socket):
+    if client_socket in connected_clients:
+        connected_clients.remove(client_socket)
+    client_socket.close()
 
 
 def random_number_generator():
@@ -9,13 +18,20 @@ def random_number_generator():
 def is_ready(client_socket, username):
     client_socket.send("Send 'ready' to begin the game".encode())
     while True:
-        ready_response = client_socket.recv(1024).decode().strip()
-        if ready_response.lower() == "ready":
-            client_socket.send("Game will soon begin!".encode())
-            print(username, "is ready.")
+        try:
+            ready_response = client_socket.recv(1024).decode().strip()
+            if ready_response.lower() == "ready":
+                client_socket.send("Game will soon begin!".encode())
+                print(username, "is ready.")
+                break
+            else:
+                client_socket.send("Invalid input! Send 'ready' to start the game".encode())
+        except ConnectionResetError:
+            print("Connection closed unexpectedly.")
             break
-        else:
-            client_socket.send("Invalid input! Send 'ready' to start the game".encode())
+        except Exception as e:
+            print("An error occurred:", str(e))
+            break
     return True
 
 
@@ -23,58 +39,90 @@ def countdown():
     for i in range(3, 0, -1):
         print(i, end=' ')
         for client_socket in connected_clients:
-            client_socket.send(str(i).encode())
+            try:
+                client_socket.send(str(i).encode())
+            except ConnectionResetError:
+                print("Connection closed unexpectedly.")
+                remove_client(client_socket)
+                break
+            except Exception as e:
+                print("An error occurred:", str(e))
+                break
         time.sleep(1)
+
 
 def send_number(number):
     for client_socket in connected_clients:
-        client_socket.send(f"Number is: {number}".encode())
-
-    nummm = client_socket.recv(1024).decode().strip()
-    print(nummm)
+        try:
+            client_socket.send(f"Number is: {number}".encode())
+        except ConnectionResetError:
+            print("Connection closed unexpectedly.")
+            remove_client(client_socket)
+            break
+        except Exception as e:
+            print("An error occurred:", str(e))
+            break
 
 def handle_client(client_socket, number):
     global max_connections, connected_clients, ready_clients
 
-    if max_connections == 0:
-        client_socket.send("Enter the maximum number of connections allowed: ".encode())
-        max_connections = int(client_socket.recv(1024).decode().strip())
-        print("Maximum number of connections set to:", max_connections)
-        client_socket.send("Please enter your username: ".encode())
-        username = client_socket.recv(1024).decode().strip()
-        print(f"{username} joined the game!")
-        connected_clients.append(client_socket)
-        if is_ready(client_socket, username):
-            ready_clients.append(username)
+    try:
+        if max_connections == 0:
+            client_socket.send("Enter the maximum number of connections allowed: ".encode())
+            max_connections = int(client_socket.recv(1024).decode().strip())
+            print("Maximum number of connections set to:", max_connections)
+            client_socket.send("Please enter your username: ".encode())
+            username = client_socket.recv(1024).decode().strip()
+            print(f"{username} joined the game!")
+            connected_clients.append(client_socket)
+            if is_ready(client_socket, username):
+                ready_clients.append(username)
 
-    elif len(connected_clients) >= max_connections:
-        client_socket.send("Maximum number of connections reached. Disconnecting.".encode())
-        print("Server at Capacity, rejecting new connections")
-        client_socket.close()
-        return
+        elif len(connected_clients) >= max_connections:
+            client_socket.send("Maximum number of connections reached. Disconnecting.".encode())
+            print("Server at Capacity, rejecting new connections")
+            remove_client(client_socket)
+            return
 
-    elif len(connected_clients) == (max_connections - 1):
-        print("Last player joined")
-        client_socket.send("Please enter your username: ".encode())
-        username = client_socket.recv(1024).decode().strip()
-        print(f"{username} joined the game!")
-        connected_clients.append(client_socket)
-        if is_ready(client_socket, username):
-            ready_clients.append(username)
+        elif len(connected_clients) == (max_connections - 1):
+            print("Last player joined")
+            client_socket.send("Please enter your username: ".encode())
+            username = client_socket.recv(1024).decode().strip()
+            print(f"{username} joined the game!")
+            connected_clients.append(client_socket)
+            if is_ready(client_socket, username):
+                ready_clients.append(username)
 
-    else:
-        client_socket.send("Please enter your username: ".encode())
-        username = client_socket.recv(1024).decode().strip()
-        print(f"{username} joined the game!")
-        connected_clients.append(client_socket)
-        if is_ready(client_socket, username):
-            ready_clients.append(username)
+        else:
+            client_socket.send("Please enter your username: ".encode())
+            username = client_socket.recv(1024).decode().strip()
+            print(f"{username} joined the game!")
+            connected_clients.append(client_socket)
+            if is_ready(client_socket, username):
+                ready_clients.append(username)
 
+        if len(ready_clients) == max_connections:
+            print("All players are ready. Starting the countdown!")
+            countdown()
+            send_number(number)
+            start_time = time.time()
 
-    if len(ready_clients) == max_connections:
-        print("All players are ready. Starting the countdown!")
-        countdown()
-        send_number(number)
+        while True:
+            # Receive data from the client
+            data = client_socket.recv(1024).decode()
+            if not data:
+                print("Connection closed by client.")
+                remove_client(client_socket)
+                break
+
+            print(f"Received from {username}: {data} in {time.time() - start_time}")
+
+    except ConnectionResetError:
+        print("Connection closed unexpectedly.")
+        remove_client(client_socket)
+    except Exception as e:
+        print("An error occurred:", str(e))
+        remove_client(client_socket)
 
 
 def start_server():
@@ -86,11 +134,18 @@ def start_server():
     number = random_number_generator()
     print("Server listening on {}:{}".format(host, port))
 
-    while True:
-        client_socket, address = server_socket.accept()
-        print("Client connected from {}:{}".format(address[0], address[1]))
-        client_thread = threading.Thread(target=handle_client, args=(client_socket, number))
-        client_thread.start()
+    try:
+        while True:
+            client_socket, address = server_socket.accept()
+            print("Client connected from {}:{}".format(address[0], address[1]))
+            client_thread = threading.Thread(target=handle_client, args=(client_socket, number))
+            client_thread.start()
+    except KeyboardInterrupt:
+        print("Server interrupted by keyboard. Shutting down...")
+    except Exception as e:
+        print("An error occurred:", str(e))
+    finally:
+        server_socket.close()
 
 
 connected_clients = []
