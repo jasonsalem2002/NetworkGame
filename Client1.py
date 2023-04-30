@@ -32,8 +32,8 @@ while True:
                         countdown = client_socket.recv(1024).decode()
                         print(countdown)
                         if "Number" in countdown:
-                            send_number = int(input("Enter the number: "))
-                            client_socket.send(str(send_number).encode())
+                            send_number = input("Enter the number: ")
+                            client_socket.sendall(send_number.encode())
                     client_socket.close()
                     break
                 print(ready, end=' ')
@@ -54,8 +54,8 @@ while True:
                         countdown = client_socket.recv(1024).decode()
                         print(countdown)
                         if "Number" in countdown:
-                            send_number = int(input("Enter the number: "))
-                            client_socket.send(str(send_number).encode())
+                            send_number = input("Enter the number: ")
+                            client_socket.sendall(send_number.encode())
                     client_socket.close()
                     break
                 print(ready, end=' ')
