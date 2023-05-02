@@ -111,7 +111,6 @@ def handle_client(client_socket, number):
 
         while True:
             if lastclient == 2:
-                print(f"{username} aallooo")
                 start_time = time.time()
                 data = client_socket.recv(1024).decode()
                 if not data:
