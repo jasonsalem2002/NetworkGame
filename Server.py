@@ -69,6 +69,7 @@ def handle_client(client_socket, number):
 
     try:
         if max_connections == 0:
+            firstRun = time.time()
             client_socket.send("Enter the maximum number of connections allowed: ".encode())
             max_connections = int(client_socket.recv(1024).decode().strip())
             print("Maximum number of connections set to:", max_connections)
@@ -109,14 +110,26 @@ def handle_client(client_socket, number):
 
         while True:
             # Receive data from the client
-            start_time = time.time()
-            data = client_socket.recv(1024).decode()
-            if not data:
-                print("Connection closed by client.")
-                remove_client(client_socket)
-                break
+            if connected_clients[0] == client_socket:
+                lastRun = time.time()
+                timeTaken = lastRun - firstRun
+                start_time = time.time()
+                data = client_socket.recv(1024).decode()
+                if not data:
+                    print("Connection closed by client.")
+                    remove_client(client_socket)
+                    break
+                print(f"Received from {username}: {data} in {time.time() - start_time - timeTaken } seconds")
 
-            print(f"Received from {username}: {data} in {time.time() - start_time} seconds")
+            else:
+                start_time = time.time()
+                data = client_socket.recv(1024).decode()
+                if not data:
+                    print("Connection closed by client.")
+                    remove_client(client_socket)
+                    break
+
+                print(f"Received from {username}: {data} in {time.time() - start_time} seconds")
 
     except ConnectionResetError:
         print("Connection closed unexpectedly.")
@@ -153,3 +166,4 @@ connected_clients = []
 ready_clients = []
 max_connections = 0
 start_server()
+
