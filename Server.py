@@ -54,7 +54,7 @@ def countdown():
 def send_number(number):
     for client_socket in connected_clients:
         try:
-            client_socket.send(f"Number is: {number}".encode())
+            client_socket.send(f"Number is: {number}, you have 5 seconds to send it!".encode())
         except ConnectionResetError:
             print("Connection closed unexpectedly.")
             remove_client(client_socket)
@@ -65,7 +65,7 @@ def send_number(number):
 
 
 def handle_client(client_socket, number):
-    global max_connections, connected_clients, ready_clients, lastclient
+    global max_connections, connected_clients, ready_clients, lastclient, round_winners, temp_RTT
 
     try:
         if max_connections == 0:
@@ -113,12 +113,37 @@ def handle_client(client_socket, number):
             if lastclient == 2:
                 start_time = time.time()
                 data = client_socket.recv(1024).decode()
+                end_time = time.time()
                 if not data:
                     print("Connection closed by client.")
                     remove_client(client_socket)
-                print(f"Received from {username}: {data} in {time.time() - start_time} seconds")
+                rtt = end_time - start_time
+                print(f"Received from {username}: {data} in {rtt} seconds")
+                if int(number) == int(data):
+                    temp_dic = {username: rtt}
+                    temp_RTT.append(temp_dic)
+                    print(temp_RTT)
+                else:
+                    print("Wrong, disqualified")
+                time.sleep(5)
                 break
-                
+
+        min_data = float('inf')
+        min_username = None
+        for dictionary in temp_RTT:
+            name, roundtrip = list(dictionary.items())[0]
+            if roundtrip < min_data:
+                min_data = roundtrip
+                min_username = name
+        print("Username with the lowest data:", min_username)
+        round_winners.append({min_username})
+        print(round_winners)
+        unique_round_winners = []
+        for element in round_winners:
+            if element not in unique_round_winners:
+                unique_round_winners.append(element)
+        print(unique_round_winners)
+
     except ConnectionResetError:
         print("Connection closed unexpectedly.")
         remove_client(client_socket)
@@ -154,4 +179,6 @@ lastclient = 0
 connected_clients = []
 ready_clients = []
 max_connections = 0
+round_winners = []
+temp_RTT = []
 start_server()
