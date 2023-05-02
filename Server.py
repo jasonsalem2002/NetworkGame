@@ -65,11 +65,10 @@ def send_number(number):
 
 
 def handle_client(client_socket, number):
-    global max_connections, connected_clients, ready_clients
+    global max_connections, connected_clients, ready_clients, lastclient
 
     try:
         if max_connections == 0:
-            firstRun = time.time()
             client_socket.send("Enter the maximum number of connections allowed: ".encode())
             max_connections = int(client_socket.recv(1024).decode().strip())
             print("Maximum number of connections set to:", max_connections)
@@ -94,6 +93,7 @@ def handle_client(client_socket, number):
             connected_clients.append(client_socket)
             if is_ready(client_socket, username):
                 ready_clients.append(username)
+            lastclient += 1
 
         else:
             client_socket.send("Please enter your username: ".encode())
@@ -103,34 +103,23 @@ def handle_client(client_socket, number):
             if is_ready(client_socket, username):
                 ready_clients.append(username)
 
-        if len(ready_clients) == max_connections:
+        if lastclient == 1:
             print("All players are ready. Starting the countdown!")
             countdown()
             send_number(number)
+            lastclient += 1
 
         while True:
-            # Receive data from the client
-            if connected_clients[0] == client_socket:
-                lastRun = time.time()
-                timeTaken = lastRun - firstRun
+            if lastclient == 2:
+                print(f"{username} aallooo")
                 start_time = time.time()
                 data = client_socket.recv(1024).decode()
                 if not data:
                     print("Connection closed by client.")
                     remove_client(client_socket)
-                    break
-                print(f"Received from {username}: {data} in {time.time() - start_time - timeTaken } seconds")
-
-            else:
-                start_time = time.time()
-                data = client_socket.recv(1024).decode()
-                if not data:
-                    print("Connection closed by client.")
-                    remove_client(client_socket)
-                    break
-
                 print(f"Received from {username}: {data} in {time.time() - start_time} seconds")
-
+                break
+                
     except ConnectionResetError:
         print("Connection closed unexpectedly.")
         remove_client(client_socket)
@@ -162,8 +151,8 @@ def start_server():
         server_socket.close()
 
 
+lastclient = 0
 connected_clients = []
 ready_clients = []
 max_connections = 0
 start_server()
-
