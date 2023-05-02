@@ -63,6 +63,7 @@ def send_number(number):
             print("An error occurred:", str(e))
             break
 
+
 def handle_client(client_socket, number):
     global max_connections, connected_clients, ready_clients
 
@@ -105,17 +106,17 @@ def handle_client(client_socket, number):
             print("All players are ready. Starting the countdown!")
             countdown()
             send_number(number)
-            start_time = time.time()
 
         while True:
             # Receive data from the client
+            start_time = time.time()
             data = client_socket.recv(1024).decode()
             if not data:
                 print("Connection closed by client.")
                 remove_client(client_socket)
                 break
 
-            print(f"Received from {username}: {data} in {time.time() - start_time}")
+            print(f"Received from {username}: {data} in {time.time() - start_time} seconds")
 
     except ConnectionResetError:
         print("Connection closed unexpectedly.")
