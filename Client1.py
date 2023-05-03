@@ -1,4 +1,5 @@
 import socket
+import time
 
 host = '127.0.0.1'  # Localhost
 port = 8080
@@ -34,6 +35,17 @@ while True:
                         if "Number" in countdown:
                             send_number = input("Enter the number: ")
                             client_socket.sendall(send_number.encode())
+                        elif "Round 2" in countdown:
+                            ready2 = input()
+                            client_socket.sendall(ready2.encode())
+                            while True:
+                                countdown = client_socket.recv(1024).decode()
+                                print(countdown)
+                                if "Number" in countdown:
+                                    send_number = input("Enter the number: ")
+                                    client_socket.sendall(send_number.encode())
+                                    #                 we need to work here
+
                     client_socket.close()
                     break
                 print(ready, end=' ')
@@ -56,11 +68,19 @@ while True:
                         if "Number" in countdown:
                             send_number = input("Enter the number: ")
                             client_socket.sendall(send_number.encode())
+                        elif "Round 2" in countdown:
+                            ready2 = input()
+                            client_socket.sendall(ready2.encode())
+                            while True:
+                                countdown = client_socket.recv(1024).decode()
+                                print(countdown)
+                                if "Number" in countdown:
+                                    send_number = input("Enter the number: ")
+                                    client_socket.sendall(send_number.encode())
+                    #                 we need to work here
                     client_socket.close()
                     break
                 print(ready, end=' ')
                 is_ready = input()
                 client_socket.send(is_ready.encode())
             break
-
-
