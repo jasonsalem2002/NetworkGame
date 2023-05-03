@@ -1,8 +1,40 @@
-import socket
 import random
-import time
+import socket
 import threading
+import time
+import tabulate
 
+def checking(client_socket, username, temp_RTT, round_winners,number):
+    start_time = time.time()
+    data = client_socket.recv(1024).decode()
+    end_time = time.time()
+    if not data:
+        print("Connection closed by client.")
+        remove_client(client_socket)
+    rtt = end_time - start_time
+    print(f"Received from {username}: {data} in {rtt} seconds")
+    if int(number) == int(data):
+        temp_dic = {username: rtt}
+        temp_RTT.append(temp_dic)
+        print(temp_RTT)
+    else:
+        print("Wrong, disqualified")
+
+    min_data = float('inf')
+    min_username = None
+    for dictionary in temp_RTT:
+        name, roundtrip = list(dictionary.items())[0]
+        if roundtrip < min_data:
+            min_data = roundtrip
+            min_username = name
+    print("Username with the lowest data:", min_username)
+    round_winners.append({min_username})
+    unique_round_winners = []
+    for element in round_winners:
+        if element not in unique_round_winners:
+            unique_round_winners.append(element)
+    print(unique_round_winners)
+    print("I am gonna sleep")
 
 def remove_client(client_socket):
     if client_socket in connected_clients:
@@ -65,7 +97,7 @@ def send_number(number):
 
 
 def handle_client(client_socket, number):
-    global max_connections, connected_clients, ready_clients, lastclient, round_winners, temp_RTT
+    global max_connections, connected_clients, ready_clients, lastclient, round_winners, temp_RTT, readyAgainList
 
     try:
         if max_connections == 0:
@@ -111,38 +143,57 @@ def handle_client(client_socket, number):
 
         while True:
             if lastclient == 2:
-                start_time = time.time()
-                data = client_socket.recv(1024).decode()
-                end_time = time.time()
-                if not data:
-                    print("Connection closed by client.")
-                    remove_client(client_socket)
-                rtt = end_time - start_time
-                print(f"Received from {username}: {data} in {rtt} seconds")
-                if int(number) == int(data):
-                    temp_dic = {username: rtt}
-                    temp_RTT.append(temp_dic)
-                    print(temp_RTT)
-                else:
-                    print("Wrong, disqualified")
-                time.sleep(5)
-                break
+                rounds = 0
+                while rounds < 3:
+                    if rounds == 1:
+                        client_socket.send("Round 2".encode())
 
-        min_data = float('inf')
-        min_username = None
-        for dictionary in temp_RTT:
-            name, roundtrip = list(dictionary.items())[0]
-            if roundtrip < min_data:
-                min_data = roundtrip
-                min_username = name
-        print("Username with the lowest data:", min_username)
-        round_winners.append({min_username})
-        print(round_winners)
-        unique_round_winners = []
-        for element in round_winners:
-            if element not in unique_round_winners:
-                unique_round_winners.append(element)
-        print(unique_round_winners)
+                        while True:
+                            if is_ready(client_socket, username):
+                                ready_clients.append(username)
+                                break
+
+                        while True:
+                            if len(readyAgainList) == max_connections:
+                                print("All players are ready. Starting the countdown!")
+                                countdown()
+                                client_socket.send(f"Number is: {roundTwoNumb}, you have 5 seconds to send it!".encode())
+
+                                # checking(client_socket, username, temp_RTT, round_winners, roundTwoNumb)
+
+                    #             we need to work on the round 2 here dont change anything else
+                    else:
+                        start_time = time.time()
+                        data = client_socket.recv(1024).decode()
+                        end_time = time.time()
+                        if not data:
+                            print("Connection closed by client.")
+                            remove_client(client_socket)
+                        rtt = end_time - start_time
+                        print(f"Received from {username}: {data} in {rtt} seconds")
+                        if int(number) == int(data):
+                            temp_dic = {username: rtt}
+                            temp_RTT.append(temp_dic)
+                            print(temp_RTT)
+                        else:
+                            print("Wrong, disqualified")
+
+                        min_data = float('inf')
+                        min_username = None
+                        for dictionary in temp_RTT:
+                            name, roundtrip = list(dictionary.items())[0]
+                            if roundtrip < min_data:
+                                min_data = roundtrip
+                                min_username = name
+                        print("Username with the lowest data:", min_username)
+                        round_winners.append({min_username})
+                        unique_round_winners = []
+                        for element in round_winners:
+                            if element not in unique_round_winners:
+                                unique_round_winners.append(element)
+                        print(unique_round_winners)
+                        rounds += 1
+                        roundTwoNumb = random_number_generator()
 
     except ConnectionResetError:
         print("Connection closed unexpectedly.")
@@ -174,7 +225,7 @@ def start_server():
     finally:
         server_socket.close()
 
-
+readyAgainList = []
 lastclient = 0
 connected_clients = []
 ready_clients = []
@@ -182,3 +233,6 @@ max_connections = 0
 round_winners = []
 temp_RTT = []
 start_server()
+
+
+# createa loop and conditon in the loop to run parts of handle clients independatly
