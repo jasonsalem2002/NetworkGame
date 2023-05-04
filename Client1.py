@@ -34,17 +34,28 @@ while True:
                         print(countdown)
                         if "Number" in countdown:
                             send_number = input("Enter the number: ")
-                            client_socket.sendall(send_number.encode())
+                            client_socket.send(send_number.encode())
                         elif "Round 2" in countdown:
                             ready2 = input()
-                            client_socket.sendall(ready2.encode())
+                            client_socket.send(ready2.encode())
                             while True:
-                                countdown = client_socket.recv(1024).decode()
-                                print(countdown)
-                                if "Number" in countdown:
-                                    send_number = input("Enter the number: ")
-                                    client_socket.sendall(send_number.encode())
-                                    #                 we need to work here
+                                countdown2 = client_socket.recv(1024).decode()
+                                print(countdown2)
+                                if "Number" in countdown2:
+                                    send_number2 = input("Enter the number: ")
+                                    client_socket.send(send_number2.encode())
+                                    break
+                        elif "Round 3" in countdown:
+                            ready3 = input()
+                            client_socket.send(ready3.encode())
+                            while True:
+                                countdown3 = client_socket.recv(1024).decode()
+                                print(countdown3)
+                                if "Number" in countdown3:
+                                    send_number3 = input("Enter the number: ")
+                                    client_socket.send(send_number3.encode())
+                                    print("game over")
+
 
                     client_socket.close()
                     break
@@ -67,17 +78,28 @@ while True:
                         print(countdown)
                         if "Number" in countdown:
                             send_number = input("Enter the number: ")
-                            client_socket.sendall(send_number.encode())
+                            client_socket.send(send_number.encode())
                         elif "Round 2" in countdown:
                             ready2 = input()
-                            client_socket.sendall(ready2.encode())
+                            client_socket.send(ready2.encode())
                             while True:
-                                countdown = client_socket.recv(1024).decode()
-                                print(countdown)
-                                if "Number" in countdown:
-                                    send_number = input("Enter the number: ")
-                                    client_socket.sendall(send_number.encode())
-                    #                 we need to work here
+                                countdown2 = client_socket.recv(1024).decode()
+                                print(countdown2)
+                                if "Number" in countdown2:
+                                    send_number2 = input("Enter the number: ")
+                                    client_socket.send(send_number2.encode())
+                                    break
+                        elif "Round 3" in countdown:
+                            ready3 = input()
+                            client_socket.send(ready3.encode())
+                            while True:
+                                countdown3 = client_socket.recv(1024).decode()
+                                print(countdown3)
+                                if "Number" in countdown3:
+                                    send_number3 = input("Enter the number: ")
+                                    client_socket.send(send_number3.encode())
+                                    print("game over")
+
                     client_socket.close()
                     break
                 print(ready, end=' ')
