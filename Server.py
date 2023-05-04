@@ -2,23 +2,31 @@ import random
 import socket
 import threading
 import time
-import tabulate
 
+
+# Function to check the client's response and calculate round trip time
 def checking(client_socket, username, temp_RTT, round_winners, number):
     start_time = time.time()
     data = client_socket.recv(1024).decode()
     end_time = time.time()
+
+    # If no data received, connection is closed by the client
     if not data:
         print("Connection closed by client.")
         remove_client(client_socket)
+
+    # Calculating round trip time (RTT)
     rtt = end_time - start_time
     print(f"Received from {username}: {data} in {rtt} seconds")
+
+    # Checking if the received number matches the expected number
     if int(number) == int(data):
         temp_dic = {username: rtt}
         temp_RTT.append(temp_dic)
     else:
         print("Wrong, disqualified")
 
+    # Finding the winner with the minimum round trip time
     min_data = float('inf')
     min_username = None
     for dictionary in temp_RTT:
@@ -27,27 +35,30 @@ def checking(client_socket, username, temp_RTT, round_winners, number):
             min_data = roundtrip
             min_username = name
     round_winners.append({min_username})
-    # print(round_winners)
-    # print(temp_RTT)
+
+    # Removing duplicate winners
     unique_round_winners = []
     for element in round_winners:
         if element not in unique_round_winners:
             unique_round_winners.append(element)
-    # print(unique_round_winners)
+
     return unique_round_winners
 
 
+# Function to remove a client from the connected_clients list
 def remove_client(client_socket):
     if client_socket in connected_clients:
         connected_clients.remove(client_socket)
     client_socket.close()
 
 
+# Function to generate a random number between 0 and 9
 def random_number_generator():
     random.seed(time.time())
     return random.randint(0, 9)
 
 
+# Function to check if the client is ready to start the game
 def is_ready(client_socket, username):
     client_socket.send("Send 'ready' to begin the game".encode())
     while True:
@@ -68,6 +79,7 @@ def is_ready(client_socket, username):
     return True
 
 
+# Function to start the countdown before the game starts
 def countdown():
     for i in range(3, 0, -1):
         print(i, end=' ')
@@ -83,7 +95,7 @@ def countdown():
                 break
         time.sleep(1)
 
-
+# Function to start the countdown before the game starts (individual sockets)
 def countdownSocket(client_socket):
     for i in range(3, 0, -1):
         try:
@@ -97,7 +109,7 @@ def countdownSocket(client_socket):
             print("An error occurred:", str(e))
             break
 
-
+# Function to send the generated number to all clients
 def send_number(number):
     for client_socket in connected_clients:
         try:
@@ -111,10 +123,12 @@ def send_number(number):
             break
 
 
+# Function to handle a client connection
 def handle_client(client_socket):
     global readyFinal, max_connections, connected_clients, ready_clients, lastclient, round_winners, temp_RTT, readyAgainList, number, roundTwoNumb,roundThreeNumb
 
     try:
+        # If the maximum number of connections is not set yet
         if max_connections == 0:
             client_socket.send("Enter the maximum number of connections allowed: ".encode())
             max_connections = int(client_socket.recv(1024).decode().strip())
@@ -123,33 +137,43 @@ def handle_client(client_socket):
             username = client_socket.recv(1024).decode().strip()
             print(f"{username} joined the game!")
             connected_clients.append(client_socket)
+
+            # Checking if the client is ready
             if is_ready(client_socket, username):
                 ready_clients.append(username)
 
+        # If the maximum number of connections is reached
         elif len(connected_clients) >= max_connections:
             client_socket.send("Maximum number of connections reached. Disconnecting.".encode())
             print("Server at Capacity, rejecting new connections")
             remove_client(client_socket)
             return
 
+        # If the last player joined
         elif len(connected_clients) == (max_connections - 1):
             print("Last player joined")
             client_socket.send("Please enter your username: ".encode())
             username = client_socket.recv(1024).decode().strip()
             print(f"{username} joined the game!")
             connected_clients.append(client_socket)
+
+            # Checking if the client is ready
             if is_ready(client_socket, username):
                 ready_clients.append(username)
             lastclient += 1
 
         else:
+            # If a regular player joined
             client_socket.send("Please enter your username: ".encode())
             username = client_socket.recv(1024).decode().strip()
             print(f"{username} joined the game!")
             connected_clients.append(client_socket)
+
+            # Checking if the client is ready
             if is_ready(client_socket, username):
                 ready_clients.append(username)
 
+        # If the last player is ready, start the countdown and send the number
         if lastclient == 1:
             print("All players are ready. Starting the countdown!")
             countdown()
@@ -161,8 +185,10 @@ def handle_client(client_socket):
                 rounds = 0
                 while rounds < 3:
                     if rounds == 1:
+                        # Second round
                         winner = checking(client_socket, username, temp_RTT, round_winners, number)
-                        temp_RTT = []; round_winners = []
+                        temp_RTT = []
+                        round_winners = []
                         client_socket.send("Round 2".encode())
 
                         while True:
@@ -173,15 +199,17 @@ def handle_client(client_socket):
                         while True:
                             if len(readyAgainList) == max_connections:
                                 client_socket.send(f"{winner} won the first round!".encode())
-                                print("All players are ready. Starting the countdown!")
+                                print("All players are ready for the second round. Starting the countdown!")
                                 countdownSocket(client_socket)
-                                client_socket.send(f"Number is: {roundTwoNumb}, you have 5 seconds to send it!".encode())
+                                client_socket.send(
+                                    f"Number is: {roundTwoNumb}, you have 5 seconds to send it!".encode())
                                 rounds += 1
                                 break
 
                     elif rounds == 2:
+                        # Third round
                         winner2 = checking(client_socket, username, temp_RTT, round_winners, roundTwoNumb)
-                        temp_RTT = [];
+                        temp_RTT = []
                         round_winners = []
                         client_socket.send("Round 3".encode())
 
@@ -193,9 +221,10 @@ def handle_client(client_socket):
                         while True:
                             if len(readyFinal) == max_connections:
                                 client_socket.send(f"{winner2} won the second round!".encode())
-                                print("All players are ready. Starting the countdown!")
+                                print("All players are ready for the third round. Starting the countdown!")
                                 countdownSocket(client_socket)
-                                client_socket.send(f"Number is: {roundThreeNumb}, you have 5 seconds to send it!".encode())
+                                client_socket.send(
+                                    f"Number is: {roundThreeNumb}, you have 5 seconds to send it!".encode())
                                 break
                         break
 
@@ -203,6 +232,7 @@ def handle_client(client_socket):
                         rounds += 1
                 winner3 = checking(client_socket, username, temp_RTT, round_winners, roundThreeNumb)
                 client_socket.send(f"{winner3} won the third round!".encode())
+
                 break
 
     except ConnectionResetError:
@@ -214,6 +244,7 @@ def handle_client(client_socket):
 
 
 def start_server():
+    # Set up the server socket and start listening for client connections
     host = '127.0.0.1'
     port = 8080
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -223,18 +254,33 @@ def start_server():
 
     try:
         while True:
+            # Accept a client connection and create a new thread to handle the client
             client_socket, address = server_socket.accept()
             print("Client connected from {}:{}".format(address[0], address[1]))
             client_thread = threading.Thread(target=handle_client, args=(client_socket,))
             client_thread.start()
 
     except KeyboardInterrupt:
+        # Handle server interruption by keyboard
         print("Server interrupted by keyboard. Shutting down...")
     except Exception as e:
+        # Handle any other exceptions that occur during server execution
         print("An error occurred:", str(e))
     finally:
+        # Close the server socket
         server_socket.close()
 
 
-readyAgainList = []; readyFinal = []; lastclient = 0; connected_clients = []; ready_clients = []; max_connections = 0; round_winners = []; temp_RTT = []; number = random_number_generator(); roundTwoNumb = random_number_generator(); roundThreeNumb = random_number_generator()
+# Initialize variables and start the server
+readyAgainList = []
+readyFinal = []
+lastclient = 0
+connected_clients = []
+ready_clients = []
+max_connections = 0
+round_winners = []
+temp_RTT = []
+number = random_number_generator()
+roundTwoNumb = random_number_generator()
+roundThreeNumb = random_number_generator()
 start_server()
