@@ -4,6 +4,8 @@ import threading
 import time
 
 
+#maya
+
 # Function to check the client's response and calculate round trip time
 def checking(client_socket, username, temp_RTT, round_winners, number):
     start_time = time.time()
@@ -44,6 +46,7 @@ def checking(client_socket, username, temp_RTT, round_winners, number):
 
     return unique_round_winners
 
+#zeina
 
 # Function to remove a client from the connected_clients list
 def remove_client(client_socket):
@@ -109,6 +112,7 @@ def countdownSocket(client_socket):
             print("An error occurred:", str(e))
             break
 
+            #wafic
 # Function to send the generated number to all clients
 def send_number(number):
     for client_socket in connected_clients:
@@ -122,7 +126,7 @@ def send_number(number):
             print("An error occurred:", str(e))
             break
 
-
+#jason
 # Function to handle a client connection
 def handle_client(client_socket):
     global readyFinal, max_connections, connected_clients, ready_clients, lastclient, round_winners, temp_RTT, readyAgainList, number, roundTwoNumb,roundThreeNumb
