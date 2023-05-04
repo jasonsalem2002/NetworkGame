@@ -4,7 +4,7 @@ import threading
 import time
 import tabulate
 
-def checking(client_socket, username, temp_RTT, round_winners,number):
+def checking(client_socket, username, temp_RTT, round_winners, number):
     start_time = time.time()
     data = client_socket.recv(1024).decode()
     end_time = time.time()
@@ -16,7 +16,6 @@ def checking(client_socket, username, temp_RTT, round_winners,number):
     if int(number) == int(data):
         temp_dic = {username: rtt}
         temp_RTT.append(temp_dic)
-        print(temp_RTT)
     else:
         print("Wrong, disqualified")
 
@@ -27,14 +26,16 @@ def checking(client_socket, username, temp_RTT, round_winners,number):
         if roundtrip < min_data:
             min_data = roundtrip
             min_username = name
-    print("Username with the lowest data:", min_username)
     round_winners.append({min_username})
+    # print(round_winners)
+    # print(temp_RTT)
     unique_round_winners = []
     for element in round_winners:
         if element not in unique_round_winners:
             unique_round_winners.append(element)
-    print(unique_round_winners)
-    print("I am gonna sleep")
+    # print(unique_round_winners)
+    return unique_round_winners
+
 
 def remove_client(client_socket):
     if client_socket in connected_clients:
@@ -83,6 +84,20 @@ def countdown():
         time.sleep(1)
 
 
+def countdownSocket(client_socket):
+    for i in range(3, 0, -1):
+        try:
+            client_socket.send(str(i).encode())
+            time.sleep(1)
+        except ConnectionResetError:
+            print("Connection closed unexpectedly.")
+            remove_client(client_socket)
+            break
+        except Exception as e:
+            print("An error occurred:", str(e))
+            break
+
+
 def send_number(number):
     for client_socket in connected_clients:
         try:
@@ -96,8 +111,8 @@ def send_number(number):
             break
 
 
-def handle_client(client_socket, number):
-    global max_connections, connected_clients, ready_clients, lastclient, round_winners, temp_RTT, readyAgainList
+def handle_client(client_socket):
+    global readyFinal, max_connections, connected_clients, ready_clients, lastclient, round_winners, temp_RTT, readyAgainList, number, roundTwoNumb,roundThreeNumb
 
     try:
         if max_connections == 0:
@@ -146,54 +161,49 @@ def handle_client(client_socket, number):
                 rounds = 0
                 while rounds < 3:
                     if rounds == 1:
+                        winner = checking(client_socket, username, temp_RTT, round_winners, number)
+                        temp_RTT = []; round_winners = []
                         client_socket.send("Round 2".encode())
 
                         while True:
                             if is_ready(client_socket, username):
-                                ready_clients.append(username)
+                                readyAgainList.append(username)
                                 break
 
                         while True:
                             if len(readyAgainList) == max_connections:
+                                client_socket.send(f"{winner} won the first round!".encode())
                                 print("All players are ready. Starting the countdown!")
-                                countdown()
+                                countdownSocket(client_socket)
                                 client_socket.send(f"Number is: {roundTwoNumb}, you have 5 seconds to send it!".encode())
+                                rounds += 1
+                                break
 
-                                # checking(client_socket, username, temp_RTT, round_winners, roundTwoNumb)
+                    elif rounds == 2:
+                        winner2 = checking(client_socket, username, temp_RTT, round_winners, roundTwoNumb)
+                        temp_RTT = [];
+                        round_winners = []
+                        client_socket.send("Round 3".encode())
 
-                    #             we need to work on the round 2 here dont change anything else
+                        while True:
+                            if is_ready(client_socket, username):
+                                readyFinal.append(username)
+                                break
+
+                        while True:
+                            if len(readyFinal) == max_connections:
+                                client_socket.send(f"{winner2} won the second round!".encode())
+                                print("All players are ready. Starting the countdown!")
+                                countdownSocket(client_socket)
+                                client_socket.send(f"Number is: {roundThreeNumb}, you have 5 seconds to send it!".encode())
+                                break
+                        break
+
                     else:
-                        start_time = time.time()
-                        data = client_socket.recv(1024).decode()
-                        end_time = time.time()
-                        if not data:
-                            print("Connection closed by client.")
-                            remove_client(client_socket)
-                        rtt = end_time - start_time
-                        print(f"Received from {username}: {data} in {rtt} seconds")
-                        if int(number) == int(data):
-                            temp_dic = {username: rtt}
-                            temp_RTT.append(temp_dic)
-                            print(temp_RTT)
-                        else:
-                            print("Wrong, disqualified")
-
-                        min_data = float('inf')
-                        min_username = None
-                        for dictionary in temp_RTT:
-                            name, roundtrip = list(dictionary.items())[0]
-                            if roundtrip < min_data:
-                                min_data = roundtrip
-                                min_username = name
-                        print("Username with the lowest data:", min_username)
-                        round_winners.append({min_username})
-                        unique_round_winners = []
-                        for element in round_winners:
-                            if element not in unique_round_winners:
-                                unique_round_winners.append(element)
-                        print(unique_round_winners)
                         rounds += 1
-                        roundTwoNumb = random_number_generator()
+                winner3 = checking(client_socket, username, temp_RTT, round_winners, roundThreeNumb)
+                client_socket.send(f"{winner3} won the third round!".encode())
+                break
 
     except ConnectionResetError:
         print("Connection closed unexpectedly.")
@@ -209,15 +219,15 @@ def start_server():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind((host, port))
     server_socket.listen(5)
-    number = random_number_generator()
     print("Server listening on {}:{}".format(host, port))
 
     try:
         while True:
             client_socket, address = server_socket.accept()
             print("Client connected from {}:{}".format(address[0], address[1]))
-            client_thread = threading.Thread(target=handle_client, args=(client_socket, number))
+            client_thread = threading.Thread(target=handle_client, args=(client_socket,))
             client_thread.start()
+
     except KeyboardInterrupt:
         print("Server interrupted by keyboard. Shutting down...")
     except Exception as e:
@@ -225,14 +235,6 @@ def start_server():
     finally:
         server_socket.close()
 
-readyAgainList = []
-lastclient = 0
-connected_clients = []
-ready_clients = []
-max_connections = 0
-round_winners = []
-temp_RTT = []
+
+readyAgainList = []; readyFinal = []; lastclient = 0; connected_clients = []; ready_clients = []; max_connections = 0; round_winners = []; temp_RTT = []; number = random_number_generator(); roundTwoNumb = random_number_generator(); roundThreeNumb = random_number_generator()
 start_server()
-
-
-# createa loop and conditon in the loop to run parts of handle clients independatly
