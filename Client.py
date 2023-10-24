@@ -33,7 +33,6 @@ while True:
 
         if user0:
             while True: 
-#                 Wafic, maya and zeina
                 # Receive and handle the "ready" prompt indicating the game is about to begin
                 ready = client_socket.recv(1024).decode()
                 if ready == "Game will soon begin!":
@@ -90,7 +89,6 @@ while True:
             break
 
     elif prompt == "Please enter your username: ":
-#         jason
         # Handle the prompt asking for a username
         print(prompt, end=' ')
         user = input()
